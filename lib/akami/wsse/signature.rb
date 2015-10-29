@@ -102,6 +102,12 @@ module Akami
         {
           "KeyInfo" => {
             "wsse:SecurityTokenReference" => {
+              "X509Data" => {
+                "X509IssuerSerial" => {
+                  "X509IssuerName" => "CN=Digidentity Services CA - G2,O=Digidentity B.V.,C=NL",
+                  "X509SerialNumber" => "2252"
+                }
+              },
               "wsse:Reference/" => nil,
               :attributes! => { "wsse:Reference/" => {
                 "ValueType" => X509v3ValueType,
