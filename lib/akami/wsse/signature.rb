@@ -74,8 +74,6 @@ module Akami
           :attributes! => { "Signature" => { "xmlns" => SignatureNamespace } },
         }
 
-        token.deep_merge!(binary_security_token) if certs.cert
-
         token.merge! :order! => []
         [ "wsse:BinarySecurityToken", "Signature" ].each do |key|
           token[:order!] << key if token[key]
@@ -85,6 +83,14 @@ module Akami
       end
 
       private
+
+      def certificate_issuer_name
+        @certs.cert.issuer.to_s
+      end
+
+      def certificate_serial_number
+        @certs.cert.serial.to_s
+      end
 
       def binary_security_token
         {
@@ -98,18 +104,24 @@ module Akami
         }
       end
 
+      def x509_data
+        { 
+          "X509Data" => {
+            "X509IssuerSerial" => {
+              "X509IssuerName" => certificate_issuer_name,
+              "X509SerialNumber" => certificate_serial_number
+            }
+          }
+        }
+      end
+
       def key_info
         {
           "KeyInfo" => {
-            "wsse:SecurityTokenReference" => {
-              "wsse:Reference/" => nil,
-              :attributes! => { "wsse:Reference/" => {
-                "ValueType" => X509v3ValueType,
-                "URI" => "##{security_token_id}",
-              } }
-            },
+            "wsse:SecurityTokenReference" => x509_data,
             :attributes! => { "wsse:SecurityTokenReference" => { "xmlns:wsu" => "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" } },
           },
+          :attributes! => { "KeyInfo" => { "Id" => body_id } }
         }
       end
 
@@ -125,7 +137,6 @@ module Akami
             "CanonicalizationMethod/" => nil,
             "SignatureMethod/" => nil,
             "Reference" => [
-              #signed_info_transforms.merge(signed_info_digest_method).merge({ "DigestValue" => timestamp_digest }),
               signed_info_transforms.merge(signed_info_digest_method).merge({ "DigestValue" => body_digest }),
             ],
             :attributes! => {
