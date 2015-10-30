@@ -26,6 +26,9 @@ module Akami
       RSASHA1SignatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'.freeze
       SHA1DigestAlgorithm = 'http://www.w3.org/2000/09/xmldsig#sha1'.freeze
 
+      RSASHA2SignatureAlgorithm = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'.freeze
+      SHA2DigestAlgorithm = 'http://www.w3.org/2001/04/xmlenc#sha256'.freeze
+
       X509v3ValueType = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3'.freeze
       Base64EncodingType = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary'.freeze
 
@@ -105,7 +108,7 @@ module Akami
               "X509Data" => {
                 "X509IssuerSerial" => {
                   "X509IssuerName" => "CN=Digidentity Services CA - G2,O=Digidentity B.V.,C=NL",
-                  "X509SerialNumber" => "2252"
+                  "X509SerialNumber" => "T2"
                 }
               },
               "wsse:Reference/" => nil,
@@ -116,6 +119,7 @@ module Akami
             },
             :attributes! => { "wsse:SecurityTokenReference" => { "xmlns:wsu" => "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" } },
           },
+          :attributes! => { "KeyInfo" => { "Id" => body_id } }
         }
       end
 
@@ -136,7 +140,7 @@ module Akami
             ],
             :attributes! => {
               "CanonicalizationMethod/" => { "Algorithm" => ExclusiveXMLCanonicalizationAlgorithm },
-              "SignatureMethod/" => { "Algorithm" => RSASHA1SignatureAlgorithm },
+              "SignatureMethod/" => { "Algorithm" => RSASHA2SignatureAlgorithm },
               "Reference" => { "URI" => ["##{body_id}"] },
             },
             :order! => [ "CanonicalizationMethod/", "SignatureMethod/", "Reference" ],
@@ -148,7 +152,8 @@ module Akami
         raise MissingCertificate, "Expected a private_key for signing" unless certs.private_key
         signed_info = at_xpath(@document, "//Envelope/Header/Security/Signature/SignedInfo")
         signed_info = signed_info ? canonicalize(signed_info) : ""
-        signature = certs.private_key.sign(OpenSSL::Digest::SHA1.new, signed_info)
+        # signature = certs.private_key.sign(OpenSSL::Digest::SHA1.new, signed_info)
+        signature = certs.private_key.sign(OpenSSL::Digest::SHA256.new, signed_info)
         Base64.encode64(signature).gsub("\n", '') # TODO: DRY calls to Base64.encode64(...).gsub("\n", '')
       end
 
@@ -158,7 +163,7 @@ module Akami
       end
 
       def signed_info_digest_method
-        { "DigestMethod/" => nil, :attributes! => { "DigestMethod/" => { "Algorithm" => SHA1DigestAlgorithm } } }
+        { "DigestMethod/" => nil, :attributes! => { "DigestMethod/" => { "Algorithm" => SHA2DigestAlgorithm } } }
       end
 
       def signed_info_transforms
@@ -166,7 +171,8 @@ module Akami
       end
 
       def uid
-        OpenSSL::Digest::SHA1.hexdigest([Time.now, rand].collect(&:to_s).join('/'))
+        # OpenSSL::Digest::SHA1.hexdigest([Time.now, rand].collect(&:to_s).join('/'))
+        OpenSSL::Digest::SHA256.hexdigest([Time.now, rand].collect(&:to_s).join('/'))
       end
     end
   end
