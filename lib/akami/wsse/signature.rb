@@ -87,6 +87,14 @@ module Akami
         token
       end
 
+      def certificate_issuer_name
+        @certs.cert.issuer.to_s
+      end
+
+      def certificate_serial_number
+        @certs.cert.serial.to_s
+      end
+
       private
 
       def binary_security_token
@@ -107,8 +115,8 @@ module Akami
             "wsse:SecurityTokenReference" => {
               "X509Data" => {
                 "X509IssuerSerial" => {
-                  "X509IssuerName" => "CN=Digidentity Services CA - G2,O=Digidentity B.V.,C=NL",
-                  "X509SerialNumber" => "T2"
+                  "X509IssuerName" => certificate_issuer_name,
+                  "X509SerialNumber" => certificate_serial_number
                 }
               },
               "wsse:Reference/" => nil,
