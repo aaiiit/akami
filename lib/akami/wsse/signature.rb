@@ -77,7 +77,7 @@ module Akami
           :attributes! => { "Signature" => { "xmlns" => SignatureNamespace } },
         }
 
-        token.deep_merge!(binary_security_token) if certs.cert
+        # token.deep_merge!(binary_security_token) if certs.cert
 
         token.merge! :order! => []
         [ "wsse:BinarySecurityToken", "Signature" ].each do |key|
@@ -87,6 +87,8 @@ module Akami
         token
       end
 
+      private
+
       def certificate_issuer_name
         @certs.cert.issuer.to_s
       end
@@ -94,8 +96,6 @@ module Akami
       def certificate_serial_number
         @certs.cert.serial.to_s
       end
-
-      private
 
       def binary_security_token
         {
@@ -109,22 +109,21 @@ module Akami
         }
       end
 
+      def x509_data
+        { 
+          "X509Data" => {
+            "X509IssuerSerial" => {
+              "X509IssuerName" => certificate_issuer_name,
+              "X509SerialNumber" => certificate_serial_number
+            }
+          }
+        }
+      end
+
       def key_info
         {
           "KeyInfo" => {
-            "wsse:SecurityTokenReference" => {
-              "X509Data" => {
-                "X509IssuerSerial" => {
-                  "X509IssuerName" => certificate_issuer_name,
-                  "X509SerialNumber" => certificate_serial_number
-                }
-              },
-              "wsse:Reference/" => nil,
-              :attributes! => { "wsse:Reference/" => {
-                "ValueType" => X509v3ValueType,
-                "URI" => "##{security_token_id}",
-              } }
-            },
+            "wsse:SecurityTokenReference" => x509_data,
             :attributes! => { "wsse:SecurityTokenReference" => { "xmlns:wsu" => "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" } },
           },
           :attributes! => { "KeyInfo" => { "Id" => body_id } }
