@@ -52,6 +52,10 @@ module Akami
         @body_id ||= "Body-#{uid}".freeze
       end
 
+      def key_info_id
+        @key_info_id ||= "KeyInfo-#{uid}".freeze
+      end
+
       def security_token_id
         @security_token_id ||= "SecurityToken-#{uid}".freeze
       end
@@ -126,7 +130,7 @@ module Akami
             "wsse:SecurityTokenReference" => x509_data,
             :attributes! => { "wsse:SecurityTokenReference" => { "xmlns:wsu" => "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" } },
           },
-          :attributes! => { "KeyInfo" => { "Id" => body_id } }
+          :attributes! => { "KeyInfo" => { "Id" => key_info_id } }
         }
       end
 
@@ -139,19 +143,29 @@ module Akami
       def signed_info
         {
           "SignedInfo" => {
-            "CanonicalizationMethod/" => nil,
-            "SignatureMethod/" => nil,
-            "Reference" => [
-              #signed_info_transforms.merge(signed_info_digest_method).merge({ "DigestValue" => timestamp_digest }),
-              signed_info_transforms.merge(signed_info_digest_method).merge({ "DigestValue" => body_digest }),
-            ],
-            :attributes! => {
-              "CanonicalizationMethod/" => { "Algorithm" => ExclusiveXMLCanonicalizationAlgorithm },
-              "SignatureMethod/" => { "Algorithm" => RSASHA2SignatureAlgorithm },
-              "Reference" => { "URI" => ["##{body_id}"] },
-            },
-            :order! => [ "CanonicalizationMethod/", "SignatureMethod/", "Reference" ],
-          },
+            "CanonicalizationMethod/" => canonicalize_method,
+            "SignatureMethod/" => signature_method,
+            "Reference" => [ reference(body_id, body_digest), reference(key_info_id, key_info_digest) ]
+          }
+        }
+      end
+
+      def canonicalize_method
+        {
+          :@Algorithm => ExclusiveXMLCanonicalizationAlgorithm
+        }
+      end
+
+      def signature_method
+        {
+          :@Algorithm => RSASHA2SignatureAlgorithm
+        }
+      end
+
+      def reference(id, digest_value)
+        {
+          :@URI => "##{id}",
+          :content! => signed_info_transforms.merge(signed_info_digest_method).merge({ "DigestValue" => digest_value })
         }
       end
 
@@ -166,7 +180,13 @@ module Akami
 
       def body_digest
         body = canonicalize(at_xpath(@document, "//Envelope/Body"))
-        Base64.encode64(OpenSSL::Digest::SHA1.digest(body)).strip
+        # Base64.encode64(OpenSSL::Digest::SHA1.digest(body)).strip
+        Base64.encode64(OpenSSL::Digest::SHA256.digest(body)).strip
+      end
+
+      def key_info_digest
+        key_info = canonicalize(at_xpath(@document, "//Envelope/Header/Security"))
+        Base64.encode64(OpenSSL::Digest::SHA256.digest(key_info)).strip
       end
 
       def signed_info_digest_method
